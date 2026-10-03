@@ -8,7 +8,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  IMAGE_NAME: ghcr.io/jeinse/discourse_docker
 
 jobs:
   build:
