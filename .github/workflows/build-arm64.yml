@@ -1,0 +1,72 @@
+name: Build Discourse ARM64
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        working-directory: image
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build runtime dependencies
+        run: |
+          docker buildx bake \
+            base-runtime-deps \
+            -f docker-bake.hcl \
+            --load
+
+      - name: Build web-only stable
+        run: |
+          docker buildx bake \
+            base-web-only-stable \
+            -f docker-bake.hcl \
+            --load
+
+      - name: Build Discourse stable ARM64
+        run: |
+          docker buildx bake \
+            base-release-stable \
+            -f docker-bake.hcl \
+            --load
+
+      - name: Push ARM64 image
+        run: |
+          docker tag \
+            local_discourse/base:release-stable \
+            "${IMAGE_NAME}:release-stable-arm64"
+
+          docker push \
+            "${IMAGE_NAME}:release-stable-arm64"
+
+      - name: Verify image
+        run: |
+          docker image inspect \
+            "${IMAGE_NAME}:release-stable-arm64" \
+            --format '{{.Architecture}}/{{.Os}}'
